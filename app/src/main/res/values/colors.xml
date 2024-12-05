@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorDivider">#FFFFFFFF</color>
+    <color name="primaryColor">#DE7F00</color>
+    <color name="black">#FFFFFFFF</color>
+    <color name="white">#1F202B</color>
+    <color name="black_200">#FFFFFFFF</color>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+</resources>
