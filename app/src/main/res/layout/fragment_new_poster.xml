@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/etTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/poster_title_hint"
+        android:minHeight="48dp" />
+
+    <EditText
+        android:id="@+id/etDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/poster_description_hint"
+        android:minHeight="48dp" />
+
+    <ImageView
+        android:id="@+id/ivPosterImage"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/placeholder_image" />
+
+    <Button
+        android:id="@+id/btnCreatePoster"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/create_poster_button" />
+
+</LinearLayout>

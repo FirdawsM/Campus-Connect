@@ -22,6 +22,33 @@
             app:destination="@id/articleFragment"/>
 
     </fragment>
+
+    <fragment
+        android:id="@+id/campusFragment"
+        android:name="com.kotlin.campusconnect.ui.fragments.CampusFragment"
+        android:label="CampusFragment">
+        <action
+            android:id="@+id/action_campusFragment_to_newsPosterFragment"
+            app:destination="@id/newsPosterFragment" />
+        <action
+            android:id="@+id/action_campusFragment_to_posterDetailFragment"
+            app:destination="@id/posterDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/newsPosterFragment"
+        android:name="com.kotlin.campusconnect.ui.fragments.NewsPosterFragment"
+        android:label="NewsPosterFragment" />
+
+    <fragment
+        android:id="@+id/posterDetailFragment"
+        android:name="com.kotlin.campusconnect.ui.fragments.PosterDetailFragment"
+        android:label="PosterDetailFragment">
+        <argument
+            android:name="poster"
+            app:argType="com.kotlin.campusconnect.models.Poster" />
+    </fragment>
+
     <fragment
         android:id="@+id/searchFragment"
         android:name="com.kotlin.campusconnect.ui.fragments.SearchFragment"

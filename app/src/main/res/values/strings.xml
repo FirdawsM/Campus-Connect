@@ -1,5 +1,10 @@
 <resources>
-    <string name="app_name">KotlinCampusConnect</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="app_name">CampusConnect</string>
+    <string name="create_new_poster">Create New Poster</string>
+    <string name="poster_title_hint">Title</string>
+    <string name="poster_description_hint">Description</string>
+    <string name="create_poster_button">Create Poster</string>
+    <string name="poster_detail_title">Title</string>
+    <string name="poster_detail_description">Description</string>
+    <string name="poster_detail_username">Username</string>
 </resources>
