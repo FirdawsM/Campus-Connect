@@ -1,0 +1,69 @@
+{
+  "project_info": {
+    "project_number": "348765995726",
+    "firebase_url": "https://fir-databasedemo-b19ea-default-rtdb.firebaseio.com",
+    "project_id": "fir-databasedemo-b19ea",
+    "storage_bucket": "fir-databasedemo-b19ea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:348765995726:android:5ebe51dcd18a09bbba469f",
+        "android_client_info": {
+          "package_name": "com.example.firebasedatabasedemo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "348765995726-c7c7v3g496qc15cp2h0h2vuj3bhkc0cl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCz1xKnPkNEaZXN4Yh04nfjj0xxdvaxhYw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "348765995726-c7c7v3g496qc15cp2h0h2vuj3bhkc0cl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:348765995726:android:985d8dce8f4ec9aeba469f",
+        "android_client_info": {
+          "package_name": "com.kotlin.campusconnect"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "348765995726-c7c7v3g496qc15cp2h0h2vuj3bhkc0cl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCz1xKnPkNEaZXN4Yh04nfjj0xxdvaxhYw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "348765995726-c7c7v3g496qc15cp2h0h2vuj3bhkc0cl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

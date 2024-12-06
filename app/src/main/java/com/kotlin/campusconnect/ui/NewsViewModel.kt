@@ -1,4 +1,4 @@
-package com.kotlin.campusconnect.ui
+package com.kotlin.campusconnect.ui.viewmodels
 
 import android.app.Application
 import android.content.Context
@@ -9,9 +9,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.kotlin.campusconnect.NewsApplication
 import com.kotlin.campusconnect.models.Article
 import com.kotlin.campusconnect.models.NewsResponse
-import com.kotlin.campusconnect.repository.local.NewsLocalRepository
+import com.kotlin.campusconnect.repository.firebase.FirebaseNewsRepository
 import com.kotlin.campusconnect.repository.remote.NewsRemoteRepository
 import com.kotlin.campusconnect.util.Resource
 import kotlinx.coroutines.launch
@@ -21,9 +22,8 @@ import java.io.IOException
 class NewsViewModel(
     app: Application,
     private val newsRemoteRepository: NewsRemoteRepository,
-    val newsLocalRepository: NewsLocalRepository
-) :
-    AndroidViewModel(app) {
+    private val firebaseNewsRepository: FirebaseNewsRepository
+) : AndroidViewModel(app) {
     val headlines: MutableLiveData<Resource<NewsResponse>> = MutableLiveData()
     var headlinesPage = 1
     private var headlinesResponse: NewsResponse? = null
@@ -50,6 +50,83 @@ class NewsViewModel(
         searchNewsRemote(searchQuery)
     }
 
+    fun addNewsToFavorites(article: Article) = viewModelScope.launch {
+        val result = firebaseNewsRepository.saveArticle(article)
+        updateArticleSaveStatus(true)
+    }
+
+    fun getFavoriteNews() = firebaseNewsRepository.getFavoriteNews()
+
+    fun getFavoriteNewsByPublishedAt(publishedAt: String) {
+        viewModelScope.launch {
+            val article = firebaseNewsRepository.getFavoriteNewsByPublishedAt(publishedAt)
+            updateArticleSaveStatus(article != null)
+        }
+    }
+
+    fun deleteArticle(article: Article) = viewModelScope.launch {
+        try {
+            val result = firebaseNewsRepository.deleteArticle(article)
+            updateArticleSaveStatus(!result)
+        } catch (e: Exception) {
+            Log.d("NewsViewModel", e.toString())
+        }
+    }
+
+    private fun updateArticleSaveStatus(newValue: Boolean) {
+        _isArticleSaved.value = newValue
+    }
+
+    private suspend fun headlinesNewsRemote(countryCode: String) {
+        headlines.postValue(Resource.Loading())
+        try {
+            if (hasInternetConnection()) {
+                val response = newsRemoteRepository.getHeadlines(countryCode, headlinesPage)
+                headlines.postValue(handleHeadlinesResponse(response))
+            } else {
+                headlines.postValue(Resource.Error("No internet connection"))
+            }
+        } catch (t: Throwable) {
+            when (t) {
+                is IOException -> headlines.postValue(Resource.Error("Unable to connect"))
+                else -> headlines.postValue(Resource.Error("No signal"))
+            }
+        }
+    }
+
+    private suspend fun searchNewsRemote(searchQuery: String) {
+        newSearchQuery = searchQuery
+        searchNews.postValue(Resource.Loading())
+        try {
+            if (hasInternetConnection()) {
+                val response = newsRemoteRepository.search(searchQuery, searchNewsPage)
+                searchNews.postValue(handleSearchNewsResponse(response))
+            } else {
+                searchNews.postValue(Resource.Error("No internet connection"))
+            }
+        } catch (t: Throwable) {
+            when (t) {
+                is IOException -> searchNews.postValue(Resource.Error("Unable to connect"))
+                else -> searchNews.postValue(Resource.Error("No signal"))
+            }
+        }
+    }
+
+    private fun hasInternetConnection(): Boolean {
+        val connectivityManager = getApplication<NewsApplication>()
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+
+        return when {
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+            else -> false
+        }
+    }
+
     private fun handleHeadlinesResponse(response: Response<NewsResponse>): Resource<NewsResponse> {
         if (response.isSuccessful) {
             response.body()?.let { resultResponse ->
@@ -71,6 +148,7 @@ class NewsViewModel(
         if (response.isSuccessful) {
             response.body()?.let { resultResponse ->
                 if (searchNewsResponse == null || newSearchQuery != oldSearchQuery) {
+                    searchNewsPage = 1
                     oldSearchQuery = newSearchQuery
                     searchNewsResponse = resultResponse
                 } else {
@@ -85,104 +163,17 @@ class NewsViewModel(
         return Resource.Error(response.message())
     }
 
-    fun addNewsToFavorites(article: Article) = viewModelScope.launch {
-        val result = newsLocalRepository.insert(article)
-        if (result > 0) {
-            updateArticleSaveStatus(true)
-        }
-    }
-
-    fun getFavoriteNews() = newsLocalRepository.getFavoriteNews()
-
-    fun getFavoriteNewsByPublishedAt(publishedAt: String) {
-        newsLocalRepository.getFavoriteNewsByPublishedAt(publishedAt).observeForever { article ->
-            if (article?.id != null) {
-                updateArticleSaveStatus(true)
-            } else {
-                updateArticleSaveStatus(false)
-            }
-        }
-    }
-
-    fun deleteArticle(article: Article) = viewModelScope.launch {
-        try {
-            val result = newsLocalRepository.deleteArticle(article)
-            if (result > 0) {
-                updateArticleSaveStatus(false)
-            } else {
-                updateArticleSaveStatus(true)
-            }
-        } catch (e: Exception) {
-            Log.d("", e.toString())
-        }
-    }
-
     fun deleteArticleByPublishedAt(publishedAt: String) = viewModelScope.launch {
         try {
-            val result = newsLocalRepository.deleteArticleByPublishedAt(publishedAt)
-            if (result > 0) {
-                updateArticleSaveStatus(false)
-            } else {
-                updateArticleSaveStatus(true)
+            firebaseNewsRepository.getFavoriteNewsByPublishedAt(publishedAt)?.let { article ->
+                val result = firebaseNewsRepository.deleteArticle(article)
+                updateArticleSaveStatus(!result)
             }
         } catch (e: Exception) {
-            Log.d("", e.toString())
+            Log.d("NewsViewModel", e.toString())
         }
-    }
-
-    private fun internetConnection(context: Context): Boolean {
-        (context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager).apply {
-            return getNetworkCapabilities(activeNetwork)?.run {
-                when {
-                    hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-                    hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-                    hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-                    else -> false
-                }
-            } ?: false
-        }
-    }
-
-    private suspend fun headlinesNewsRemote(countryCode: String) {
-        headlines.postValue(Resource.Loading())
-        try {
-            if (internetConnection(this.getApplication())) {
-                val response = newsRemoteRepository.getHeadlines(countryCode, headlinesPage)
-                headlines.postValue(handleHeadlinesResponse(response))
-            } else {
-                headlines.postValue(Resource.Error("No internet connection"))
-            }
-        } catch (t: Throwable) {
-            when (t) {
-                is IOException -> headlines.postValue(Resource.Error("Unable to connect"))
-                else -> headlines.postValue(Resource.Error("No signal"))
-            }
-        }
-    }
-
-    private suspend fun searchNewsRemote(searchQuery: String) {
-        newSearchQuery = searchQuery
-        searchNews.postValue(Resource.Loading())
-        try {
-            if (internetConnection(this.getApplication())) {
-                val response = newsRemoteRepository.search(searchQuery, searchNewsPage)
-                searchNews.postValue(handleSearchNewsResponse(response))
-            } else {
-                searchNews.postValue(Resource.Error("No internet connection"))
-            }
-        } catch (t: Throwable) {
-            when (t) {
-                is IOException -> searchNews.postValue(Resource.Error("Unable to connect"))
-                else -> searchNews.postValue(Resource.Error("No signal"))
-            }
-        }
-    }
-
-    private fun updateArticleSaveStatus(newValue: Boolean) {
-        _isArticleSaved.value = newValue
     }
 }
-
 
 
 

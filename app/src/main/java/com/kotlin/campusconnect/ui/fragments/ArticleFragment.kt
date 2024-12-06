@@ -1,93 +1,109 @@
 package com.kotlin.campusconnect.ui.fragments
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.TextView
+import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.kotlin.campusconnect.R
 import com.kotlin.campusconnect.databinding.FragmentArticleBinding
-import com.kotlin.campusconnect.models.Article
 import com.kotlin.campusconnect.ui.NewsActivity
-import com.kotlin.campusconnect.ui.NewsViewModel
-import com.kotlin.campusconnect.ui.fragments.ArticleFragmentArgs
+import com.kotlin.campusconnect.ui.viewmodels.NewsViewModel
 
 class ArticleFragment : Fragment(R.layout.fragment_article) {
+    private var _binding: FragmentArticleBinding? = null
+    private val binding get() = _binding!!
     private lateinit var newsViewModel: NewsViewModel
+    private val args: ArticleFragmentArgs by navArgs()
 
-    private lateinit var binding: FragmentArticleBinding
-    private lateinit var titleText: TextView
-    private lateinit var sourceText: TextView
-    private lateinit var dateTimeText: TextView
-    private lateinit var contentText: TextView
-    private lateinit var authorText: TextView
-    private lateinit var articleImage: ImageView
-    private lateinit var bookmarkButton: ImageButton
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentArticleBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding = FragmentArticleBinding.bind(view)
+        setupViewModel()
+        setupContent()
+        setupObservers()
+        setupListeners()
+    }
 
-        titleText = view.findViewById(R.id.articleTitle)
-        sourceText = view.findViewById(R.id.articleSource)
-        dateTimeText = view.findViewById(R.id.articleDateTime)
-        contentText = view.findViewById(R.id.articleContent)
-        authorText = view.findViewById(R.id.articleAuthor)
-        articleImage = view.findViewById(R.id.articleImage)
-        bookmarkButton = view.findViewById(R.id.btnBookmark)
-
+    private fun setupViewModel() {
         newsViewModel = (activity as NewsActivity).newsViewModel
-        val args = ArticleFragmentArgs.fromBundle(requireArguments())
-        val article = args.article
+        newsViewModel.getFavoriteNewsByPublishedAt(args.article.publishedAt ?: "")
+    }
 
-        setContent(args.article)
+    private fun setupContent() {
+        with(args.article) {
+            binding.apply {
+                articleTitle.text = title
+                articleSource.text = source?.name
+                articleDateTime.text = publishedAt?.substring(0, 10)
+                articleContent.text = description
+                articleAuthor.text = author
 
-        binding.btnBack.setOnClickListener {
-            findNavController().popBackStack()
+                Glide.with(this@ArticleFragment)
+                    .load(urlToImage)
+                    .placeholder(R.drawable.image_newspaper)
+                    .error(R.drawable.image_newspaper)
+                    .into(articleImage)
+            }
         }
+    }
 
-        binding.btnBookmark.setOnClickListener {
-            if (newsViewModel.isArticleSaved.value == true) {
-                newsViewModel.deleteArticleByPublishedAt(article.publishedAt ?: "")
-                Snackbar.make(view, "Remove Success", Snackbar.LENGTH_LONG).apply {
-                    setAction("Undo") {
-                        newsViewModel.addNewsToFavorites(article)
-                    }
-                    show()
+    private fun setupObservers() {
+        newsViewModel.isArticleSaved.observe(viewLifecycleOwner) { isSaved ->
+            binding.btnBookmark.setImageResource(
+                if (isSaved) R.drawable.baseline_bookmark_24
+                else R.drawable.ic_bookmark
+            )
+        }
+    }
+
+    private fun setupListeners() {
+        binding.apply {
+            btnBack.setOnClickListener {
+                findNavController().popBackStack()
+            }
+
+            btnBookmark.setOnClickListener {
+                if (newsViewModel.isArticleSaved.value == true) {
+                    handleUnbookmark()
+                } else {
+                    handleBookmark()
                 }
-            } else {
-                newsViewModel.addNewsToFavorites(article)
-                Snackbar.make(view, "Added to favorites", Snackbar.LENGTH_SHORT).show()
-            }
-        }
-
-        newsViewModel.getFavoriteNewsByPublishedAt(article.publishedAt ?: "")
-
-        newsViewModel.isArticleSaved.observe(viewLifecycleOwner) { status ->
-            if (status) {
-                bookmarkButton.setImageResource(R.drawable.baseline_bookmark_24)
-            } else {
-                bookmarkButton.setImageResource(R.drawable.ic_bookmark)
             }
         }
     }
 
-    private fun setContent(article: Article) {
-        titleText.text = article.title
-        sourceText.text = article.source?.name ?: ""
-        dateTimeText.text = article.publishedAt?.substring(0, 10)
-        contentText.text = article.description
-        authorText.text = article.author
-
-        Glide.with(this)
-            .load(article.urlToImage)
-            .placeholder(R.drawable.image_newspaper)
-            .error(R.drawable.image_newspaper)
-            .into(articleImage)
+    private fun handleBookmark() {
+        newsViewModel.addNewsToFavorites(args.article)
+        Snackbar.make(
+            requireView(),
+            "Added to favorites",
+            Snackbar.LENGTH_SHORT
+        ).show()
     }
 
+    private fun handleUnbookmark() {
+        newsViewModel.deleteArticleByPublishedAt(args.article.publishedAt ?: "")
+        Snackbar.make(requireView(), "Remove Success", Snackbar.LENGTH_LONG)
+            .setAction("Undo") {
+                newsViewModel.addNewsToFavorites(args.article)
+            }.show()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
 }

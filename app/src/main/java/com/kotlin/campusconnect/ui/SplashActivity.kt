@@ -15,11 +15,11 @@ class SplashActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             delay(3000)
-            navigateToNewsActivity()
+            checkAuth()
         }
     }
 
-    private fun navigateToNewsActivity() {
+    private fun checkAuth() {
         val intent = Intent(this, NewsActivity::class.java)
         startActivity(intent)
         finish()

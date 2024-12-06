@@ -1,12 +1,13 @@
 package com.kotlin.campusconnect.ui.fragments
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -15,79 +16,109 @@ import com.google.android.material.snackbar.Snackbar
 import com.kotlin.campusconnect.R
 import com.kotlin.campusconnect.adapters.NewsAdapter
 import com.kotlin.campusconnect.databinding.FragmentFavoriteBinding
+import com.kotlin.campusconnect.models.Article
 import com.kotlin.campusconnect.ui.NewsActivity
-import com.kotlin.campusconnect.ui.NewsViewModel
-
+import com.kotlin.campusconnect.ui.viewmodels.NewsViewModel
+import com.kotlin.campusconnect.util.Resource
+import kotlinx.coroutines.launch
 
 class FavoriteFragment : Fragment(R.layout.fragment_favorite) {
-    lateinit var newsViewModel: NewsViewModel
-    lateinit var newsAdapter: NewsAdapter
+    private var _binding: FragmentFavoriteBinding? = null
+    private val binding get() = _binding!!
+    private lateinit var newsViewModel: NewsViewModel
+    private lateinit var newsAdapter: NewsAdapter
     private lateinit var noItemCard: CardView
     private lateinit var errorText: TextView
-    private lateinit var binding: FragmentFavoriteBinding
+    private var isError = false
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentFavoriteBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding = FragmentFavoriteBinding.bind(view)
+        setupUI(view)
+        setupRecyclerView()
+        observeFavorites()
+    }
 
+    private fun setupUI(view: View) {
         newsViewModel = (activity as NewsActivity).newsViewModel
         noItemCard = view.findViewById(R.id.noItem)
+        val viewError = layoutInflater.inflate(R.layout.no_item, null)
+        errorText = viewError.findViewById(R.id.errorText)
+    }
 
-        val inflater =
-            requireContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-        val view: View = inflater.inflate(R.layout.no_item, null)
-
-        errorText = view.findViewById(R.id.errorText)
-
-        setupFavoritesRecycler()
-
-        newsAdapter.setOnItemClickListener {
-            val bundle = Bundle().apply {
-                putSerializable("article", it)
+    private fun setupRecyclerView() {
+        newsAdapter = NewsAdapter().apply {
+            setOnItemClickListener { article ->
+                findNavController().navigate(
+                    R.id.action_favoritesFragment_to_articleFragment,
+                    Bundle().apply { putSerializable("article", article) }
+                )
             }
-            findNavController().navigate(R.id.action_favoritesFragment_to_articleFragment, bundle)
         }
 
-        val itemTouchHelperCallback = object : ItemTouchHelper.SimpleCallback(
-            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
-            ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
-        ) {
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean {
-                return true
-            }
+        binding.recyclerFavourites.apply {
+            adapter = newsAdapter
+            layoutManager = LinearLayoutManager(activity)
+        }
 
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                val position = viewHolder.adapterPosition
-                val article = newsAdapter.differ.currentList[position]
-                newsViewModel.deleteArticle(article)
-                Snackbar.make(view, "Remove Success", Snackbar.LENGTH_LONG).apply {
-                    setAction("Undo") {
-                        newsViewModel.addNewsToFavorites(article)
+        setupSwipeToDelete()
+    }
+
+    private fun setupSwipeToDelete() {
+        val itemTouchHelper = ItemTouchHelper(
+            object : ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+                ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+            ) {
+                override fun onMove(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    target: RecyclerView.ViewHolder
+                ) = true
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                    val position = viewHolder.adapterPosition
+                    val article = newsAdapter.differ.currentList[position]
+                    newsViewModel.deleteArticle(article)
+
+                    Snackbar.make(binding.root, "Remove Success", Snackbar.LENGTH_LONG)
+                        .setAction("Undo") { newsViewModel.addNewsToFavorites(article) }
+                        .show()
+                }
+            }
+        )
+        itemTouchHelper.attachToRecyclerView(binding.recyclerFavourites)
+    }
+
+    private fun observeFavorites() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            newsViewModel.getFavoriteNews().collect { response ->
+                when (response) {
+                    is Resource.Success -> {
+                        response.data?.let { articles ->
+                            newsAdapter.differ.submitList(articles)
+                            if (articles.isNotEmpty()) hideErrorMessage()
+                            else showErrorMessage("No saved articles")
+                        }
                     }
-                    show()
+                    is Resource.Error -> {
+                        showErrorMessage(response.message ?: "Error loading favorites")
+                    }
+                    is Resource.Loading -> {
+                        // Handle loading if needed
+                    }
                 }
             }
         }
-
-        ItemTouchHelper(itemTouchHelperCallback).apply {
-            attachToRecyclerView((binding.recyclerFavourites))
-        }
-
-        newsViewModel.getFavoriteNews().observe(viewLifecycleOwner) { articles ->
-            newsAdapter.differ.submitList(articles)
-            if (articles.isNotEmpty()) {
-                hideErrorMessage()
-            } else {
-                showErrorMessage("No data")
-            }
-        }
     }
-
-    private var isError = false
 
     private fun hideErrorMessage() {
         noItemCard.visibility = View.INVISIBLE
@@ -100,24 +131,8 @@ class FavoriteFragment : Fragment(R.layout.fragment_favorite) {
         isError = true
     }
 
-    private fun setupFavoritesRecycler() {
-        newsAdapter = NewsAdapter()
-        binding.recyclerFavourites.apply {
-            adapter = newsAdapter
-            layoutManager = LinearLayoutManager(activity)
-        }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
